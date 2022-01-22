@@ -1,3 +1,5 @@
 .vscode/
 build/
 grasp_*
+vgcore*
+*.txt
