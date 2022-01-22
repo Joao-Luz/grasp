@@ -62,22 +62,22 @@ void ks_local_search(grasp* g, void* v_items, int n_items, int* solution, int* n
 			}
 		}
 	}
-
 }
 
 int main() {
 	srand(time(NULL));
 	
 	ks_args args = {.limit = 20};
-	grasp g = {.iterations = 20,
-			   .alpha = 0.6,
-			   .max = true,
-			   .compute_costs = ks_cost,
-			   .compare_solutions = ks_compare,
-			   .update_candidates = ks_candidates,
-			   .local_search = ks_local_search,
-			   .problem = &args
-			   };
+	grasp g = {
+		.iterations = 20,
+		.alpha = 0.6,
+		.max = true,
+		.compute_costs = ks_cost,
+		.compare_solutions = ks_compare,
+		.update_candidates = ks_candidates,
+		.local_search = ks_local_search,
+		.problem = &args
+	};
 			   
 	ks_item items[10];
 
