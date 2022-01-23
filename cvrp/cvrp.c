@@ -112,7 +112,8 @@ void _cvrp_costs(grasp* g, void* v_nodes, int n_nodes, int* solution, int n_solu
             cvrp_node node_j = nodes[j];
             
             float distance = node_i.x == node_j.x && node_i.y == node_j.y ? 1e-3 : cvrp_distance(node_i, node_j);
-            costs[j] = pow(abs(data->cap - node_j.demand + node_i.demand), 1)/pow(distance, 2);
+            float distance_depot_j = data->depot.x == node_j.x && data->depot.y == node_j.y ? 1e-3 : cvrp_distance(data->depot, node_j);
+            costs[j] = (data->cap - (node_j.demand + node_i.demand))/(pow(distance*distance_depot_j, 2));
         }
     }
 }
