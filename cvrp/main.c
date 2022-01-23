@@ -61,7 +61,7 @@ int main(int argc, char** argv) {
         .n_vehicles = k
     };
 
-    cvrp_route* routes = cvrp_solve(&data, 500, 0.6);
+    cvrp_route* routes = cvrp_solve(&data, 500, 0.5);
 
     for(int i = 0; i < data.n_vehicles; i++) {
         printf("Route #%d: ", i+1);
