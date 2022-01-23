@@ -164,6 +164,36 @@ void _cvrp_split(grasp* g, void* v_nodes, int n_nodes, int* solution, int n_solu
         }
         data->_routes_indices[i] = route_index;
     }
+
+    // apply the nearest-neighbor heuristic
+    cvrp_route* routes = indices_to_routes(split_solution, data->_routes_indices, n_vehicles);
+    for(int i = 0; i < n_vehicles; i++) {
+        cvrp_route* route = &routes[i];
+        bool visited[route->length]; for(int j = 0; j < route->length; j++) visited[j] = false;
+        int new_stops[route->length];
+
+        cvrp_node last_stop = data->depot;
+        for(int j = 0; j < route->length; j++) {
+            // find nearest node to last_node
+            cvrp_node nearest; int nearest_index;
+            float min_distance = INFINITY;
+            for(int k = 0; k < route->length; k++) {
+                if(visited[k]) continue;
+                cvrp_node current = nodes[route->stops[k]];
+                float distance = cvrp_distance(last_stop, current);
+                if(distance < min_distance) {
+                    nearest = current;
+                    min_distance = distance;
+                    nearest_index = k;
+                }
+            }
+            last_stop = nearest;
+            visited[nearest_index] = true;
+            new_stops[j] = solution[route->stops[nearest_index]];
+        }
+        for(int j = 0; j < route->length; j++) route->stops[j] = new_stops[j];
+    }
+
     for(int i = 0; i < n_solution; i++) solution[i] = split_solution[i];
 }
 
