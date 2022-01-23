@@ -16,6 +16,23 @@ void print_route(cvrp_route route) {
     printf("\n");
 }
 
+void free_routes(cvrp_route* routes, int n_routes) {
+    for(int i = 0; i < n_routes; i++) free(routes[i].stops);
+    free(routes);
+}
+
+cvrp_route* copy_routes(cvrp_route* routes, int n_routes) {
+    cvrp_route* copy = malloc(n_routes*sizeof(cvrp_route));
+    for(int i = 0; i < n_routes; i++) {
+        copy[i].stops = malloc(routes[i].length*sizeof(int));
+        copy[i].length = routes[i].length;
+        for(int j = 0; j < routes[i].length; j++) {
+            copy[i].stops[j] = routes[i].stops[j];
+        }
+    }
+    return copy;
+}
+
 // transform the array of indices into different routes
 cvrp_route* indices_to_routes(int array[], int indices[], int n_routes) {
     cvrp_route* routes = malloc(n_routes*sizeof(cvrp_route));
@@ -204,6 +221,11 @@ void swap_nodes(cvrp_route route, int i, int j) {
 }
 
 void invert_nodes(cvrp_route route, int i, int j) {
+    if(j > i) {
+        int tmp = i;
+        i = j;
+        j = tmp;
+    }
     for(; i < j; i++, j--)
         swap_nodes(route, i, j);
 }
@@ -230,6 +252,87 @@ void splice(cvrp_route* route_a, cvrp_route* route_b, int a, int b) {
     route_b->length = new_length_b;
 }
 
+cvrp_route* best_swap_neighbor(cvrp_route* original_routes, int n_routes, int cap, cvrp_node* nodes, cvrp_node depot) {
+    cvrp_route* routes = copy_routes(original_routes, n_routes);
+    float best_cost = cvrp_total_cost(routes, n_routes, nodes, depot);
+
+    for(int i = 0; i < n_routes; i++) {
+        cvrp_route route = routes[i];
+        if(route.length == 1) continue;
+
+        int a = rand()%(route.length);
+        int b = rand()%(route.length);
+        while (b == a){
+            b = rand()%(route.length);
+        }
+
+        swap_nodes(route, a, b);
+        float cost = cvrp_total_cost(routes, n_routes, nodes, depot);
+        if(cost >= best_cost)
+            swap_nodes(route, a, b);
+    }
+
+    return routes;
+}
+
+cvrp_route* best_invert_neighbor(cvrp_route* original_routes, int n_routes, int cap, cvrp_node* nodes, cvrp_node depot) {
+    cvrp_route* routes = copy_routes(original_routes, n_routes);
+    float best_cost = cvrp_total_cost(routes, n_routes, nodes, depot);
+
+    for(int i = 0; i < n_routes; i++) {
+        cvrp_route route = routes[i];
+        if(route.length == 1) continue;
+
+        int a = rand()%(route.length);
+        int b = rand()%(route.length);
+        while (b == a) {
+            b = rand()%(route.length);
+        }
+
+        invert_nodes(route, a, b);
+        float cost = cvrp_total_cost(routes, n_routes, nodes, depot);
+        if(cost >= best_cost)
+            invert_nodes(route, a, b);
+    }
+
+    return routes;
+}
+
+cvrp_route* best_2opt_neighbor(cvrp_route* original_routes, int n_routes, int cap, cvrp_node* nodes, cvrp_node depot) {
+    cvrp_route* routes = copy_routes(original_routes, n_routes);
+    float best_cost = cvrp_total_cost(routes, n_routes, nodes, depot);
+    bool spliced[n_routes]; for(int i = 0; i < n_routes; i++) spliced[i] = false;
+
+    for(int i = 0; i < n_routes; i++) {
+        cvrp_route* route_i = &routes[i];
+        for(int j = 0; j < n_routes; j++) {
+            cvrp_route* route_j = &routes[j];
+            if(i == j || (route_i->length == 1 && route_j->length == 1) || spliced[j]) continue;
+
+            int a = rand()%(route_i->length);
+            int b = rand()%(route_j->length);
+
+            splice(route_i, route_j, a, b);
+            float current_cost = cvrp_total_cost(routes, n_routes, nodes, depot);
+            bool feasable = cvrp_feasable(routes, n_routes, nodes, cap);
+
+            if(current_cost < best_cost && feasable) {
+                best_cost = current_cost;
+                spliced[i] = spliced[j] = true;
+            } else {
+                splice(route_i, route_j, a, b);
+            }
+
+        }
+    }
+
+    return routes;
+}
+
+float random_real() {
+    return (float)rand()/RAND_MAX;
+}
+
 void _cvrp_local_search(grasp* g, void* v_nodes, int n_nodes, int* solution, int* n_solution) {
     cvrp_node* nodes = (cvrp_node*) v_nodes;
 	cvrp_data* data = (cvrp_data*) g->data;
@@ -237,90 +340,45 @@ void _cvrp_local_search(grasp* g, void* v_nodes, int n_nodes, int* solution, int
     cvrp_node depot = data->depot;
     int n_vehicles = data->n_vehicles;
 
-    // cvrp_route* routes_swap = indices_to_routes(solution, data->_routes_indices, data->n_vehicles);
-    // float original_cost = cvrp_total_cost(routes_swap, data->n_vehicles, nodes, depot);
+    // apply simulated anealing
+    float temperature = 150;
+    float alpha = 0.8;
+    cvrp_route* best_routes = indices_to_routes(solution, data->_routes_indices, n_vehicles);
+    float best_cost = cvrp_total_cost(best_routes, n_vehicles, nodes, depot);
+    while(temperature > 1) {
 
-
-    // cvrp_route* routes_inversion = indices_to_routes(solution, data->_routes_indices, data->n_vehicles);
-    // original_cost = cvrp_total_cost(routes_inversion, data->n_vehicles, nodes, depot);
-
-    // // inversion
-    // for(int i = 0; i < n_vehicles; i++) {
-    //     cvrp_route route = routes_inversion[i];
-    //     if(route.length == 1) continue;
+        cvrp_route* current_routes;
+        int r = rand()%3;
+        switch (r) {
+        case 0:
+            current_routes = best_2opt_neighbor(best_routes, n_vehicles, data->cap, nodes, data->depot);
+            break;
+        case 1:
+            current_routes = best_swap_neighbor(best_routes, n_vehicles, data->cap, nodes, data->depot);
+            break;
+        default:
+            current_routes = best_invert_neighbor(best_routes, n_vehicles, data->cap, nodes, data->depot);
+            break;
+        }
+        float opt_cost = cvrp_total_cost(current_routes, n_vehicles, nodes, depot);
         
-    //     int j = rand()%route.length;
-    //     int k = rand()%route.length;
-    //     while(j==k) k = rand()%route.length;
-
-    //     if(j > k) {
-    //         int aux = j;
-    //         j = k;
-    //         k = aux;
-    //     }
-
-    //     invert_nodes(route, j, k);
-    //     float current_cost = cvrp_total_cost(routes_inversion, data->n_vehicles, nodes, depot);
-
-    //     if(current_cost >= original_cost)
-    //         invert_nodes(route, j, k);
-    // }
-    // float inversion_cost = cvrp_total_cost(routes_inversion, data->n_vehicles, nodes, depot);
-
-    cvrp_route* routes_2opt = indices_to_routes(solution, data->_routes_indices, data->n_vehicles);
-    float best_2opt_cost = cvrp_total_cost(routes_2opt, data->n_vehicles, nodes, depot);
-
-    // swap
-    int tries = 0;
-    for(int i = 0; i < n_vehicles; i++) {
-        cvrp_route route = routes_2opt[i];
-
-        if(route.length == 1) continue;
-
-        int j = rand()%route.length;
-        int k = rand()%route.length;
-        while(j==k) k = rand()%route.length;
-        swap_nodes(route, j, k);
-
-        float current_cost = cvrp_total_cost(routes_2opt, data->n_vehicles, nodes, depot);
-        if(current_cost >= best_2opt_cost) {
-            swap_nodes(route, j, k);
-            if(++tries < 10) i--;
+        if(opt_cost < best_cost) {
+            best_cost = opt_cost;
+            free_routes(best_routes, n_vehicles);
+            best_routes = best_2opt_neighbor(current_routes, n_vehicles, data->cap, nodes, data->depot);
+            free_routes(current_routes, n_vehicles);
+        }
+        else if(exp((best_cost-opt_cost)/temperature) > random_real()){
+            free_routes(best_routes, n_vehicles);
+            best_routes = current_routes;
         } else {
-            tries = 0;
+            free_routes(current_routes, n_vehicles);
         }
+
+        temperature *= alpha;
     }
 
-    // 2-opt
-    bool spliced[n_vehicles]; for(int i = 0; i < n_vehicles; i++) spliced[i] = false;
-    tries = 0;
-    for(int i = 0; i < n_vehicles; i++) {
-        cvrp_route* route_i = &routes_2opt[i];
-        if(route_i->length == 1) continue;
-        for(int j = 0; j < n_vehicles; j++) {
-            cvrp_route* route_j = &routes_2opt[j];
-            if(i == j || route_j->length == 1 || spliced[j]) continue;
-
-            int a = rand()%(route_i->length-1);
-            int b = rand()%(route_j->length-1);
-
-            splice(route_i, route_j, a, b);
-            float current_cost = cvrp_total_cost(routes_2opt, data->n_vehicles, nodes, depot);
-            bool feasable = cvrp_feasable(routes_2opt, n_vehicles, nodes, data->cap);
-
-            if(current_cost < best_2opt_cost && feasable) {
-                spliced[i] = spliced[j] = true;
-                best_2opt_cost = current_cost;
-                tries = 0;
-                break;
-            } else {
-                splice(route_i, route_j, a, b);
-                if(++tries < 15) j--;
-            }
-        }
-    }
-
-    routes_to_indices(routes_2opt, n_vehicles, solution, data->_routes_indices);
+    routes_to_indices(best_routes, n_vehicles, solution, data->_routes_indices);
 }
 
 cvrp_route* cvrp_solve(cvrp_data* data, int iterations, float alpha) {
