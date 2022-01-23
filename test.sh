@@ -3,9 +3,11 @@
 make
 
 for file in cvrp/vrp-A/*.vrp; do
-    echo -e "------------------------------------\n"
-    echo -e "Running $file\n"
-    ./grasp_cvrp "$file"
-    echo -e "\nOptimal Solution:\n"
-    cat ${file%.*}.sol
+    output=$( (./grasp_cvrp "$file";) 2>&1 )
+    echo -e "Running $file...\n"
+    echo -e "$output" | grep "Time"
+    echo -e "$output" | grep "Cost"
+    optimal=$( (cat ${file%.*}.sol | grep "Cost";) 2>&1 )
+    echo -e "Optimal $optimal"
+    echo -e ""
 done

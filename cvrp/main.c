@@ -61,7 +61,12 @@ int main(int argc, char** argv) {
         .n_vehicles = k
     };
 
+    clock_t start, end;
+    double elapsed_time;
+    start = clock();
     cvrp_route* routes = cvrp_solve(&data, 500, 0.5);
+    end = clock();
+    elapsed_time = (double)(end-start)/CLOCKS_PER_SEC;
 
     for(int i = 0; i < data.n_vehicles; i++) {
         printf("Route #%d: ", i+1);
@@ -74,6 +79,7 @@ int main(int argc, char** argv) {
     }
 
     printf("Cost %.0f\n", cvrp_total_cost(routes, data.n_vehicles, nodes, depot));
+    printf("Time %.5f seconds\n", elapsed_time);
 
     for(int i = 0; i < data.n_vehicles; i++) free(routes[i].stops);
     free(routes);
