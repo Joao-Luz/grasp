@@ -61,10 +61,16 @@ int main(int argc, char** argv) {
         .n_vehicles = k
     };
 
+    float alpha=0.5;
+    if(argc >= 3) alpha = atof(argv[2]);
+
+    int iter = 500;
+    if(argc >= 4) iter = atoi(argv[3]);
+
     clock_t start, end;
     double elapsed_time;
     start = clock();
-    cvrp_route* routes = cvrp_solve(&data, 500, 0.5);
+    cvrp_route* routes = cvrp_solve(&data, iter, alpha);
     end = clock();
     elapsed_time = (double)(end-start)/CLOCKS_PER_SEC;
 
