@@ -375,8 +375,8 @@ void _cvrp_local_search(grasp* g, void* v_nodes, int n_nodes, int* solution, int
     int n_vehicles = data->n_vehicles;
 
     // apply simulated anealing
-    float temperature = 150;
-    float alpha = 0.8;
+    float alpha = data->sa_alpha;
+    float temperature = data->sa_temp;
     cvrp_route* best_routes = indices_to_routes(solution, data->_routes_indices, n_vehicles);
     float best_cost = cvrp_total_cost(best_routes, n_vehicles, nodes, depot);
     while(temperature > 1) {

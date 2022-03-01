@@ -58,6 +58,9 @@ int main(int argc, char** argv) {
         .depot = depot,
         .nodes = nodes,
         .n_nodes = n-1,
+        .n_vehicles = k,
+        .sa_alpha = 0.9,
+        .sa_temp = 5000,
         .verbose = true
     };
 
