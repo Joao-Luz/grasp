@@ -7,10 +7,56 @@
 
 #include "cvrp.h"
 
+void parse_args(int argc, char** argv, FILE** fd, float* alpha, int* iter, float* sa_temp, float* sa_alpha, bool* verbose) {
+
+    if (argc < 2) {
+        printf("No input file!\n");
+        exit(1);
+    }
+
+    *fd = fopen(argv[1], "r");
+    if (*fd == NULL) {
+        printf("Invalid file \"%s\"\n", argv[1]);
+        exit(1);
+    }
+    for (int i = 2; i < argc; i++) {
+        char* arg = argv[i];
+
+        // Default
+        *alpha = 0.5;
+        *iter = 300;
+        *sa_temp = 5000;
+        *sa_alpha = 0.9;
+        *verbose = false;
+
+        if      (!strcmp(arg, "--alpha")) {
+            *alpha = atof(argv[++i]);
+        }
+        else if (!strcmp(arg, "--iter")) {
+            *iter = atoi(argv[++i]);
+        }
+        else if (!strcmp(arg, "--satemp")) {
+            *sa_temp = atof(argv[++i]);
+        }
+        else if (!strcmp(arg, "--saalpha")) {
+            *sa_alpha = atof(argv[++i]);
+        }
+        else if (!strcmp(arg, "--verbose")) {
+            *verbose = true;
+        }
+    }
+}
+
 int main(int argc, char** argv) {
     srand(time(NULL));
 
-    FILE* fd = fopen(argv[1], "r");
+
+    FILE* fd;
+    float alpha, sa_alpha, sa_temp;
+    int iter;
+    bool verbose;
+    parse_args(argc, argv, &fd, &alpha, &iter, &sa_temp, &sa_alpha, &verbose);
+
     int n;
     int k;
 
@@ -59,16 +105,10 @@ int main(int argc, char** argv) {
         .nodes = nodes,
         .n_nodes = n-1,
         .n_vehicles = k,
-        .sa_alpha = 0.9,
-        .sa_temp = 5000,
-        .verbose = true
+        .sa_alpha = sa_alpha,
+        .sa_temp = sa_temp,
+        .verbose = verbose
     };
-
-    float alpha=0.5;
-    if(argc >= 3) alpha = atof(argv[2]);
-
-    int iter = 500;
-    if(argc >= 4) iter = atoi(argv[3]);
 
     clock_t start, end;
     double elapsed_time;
