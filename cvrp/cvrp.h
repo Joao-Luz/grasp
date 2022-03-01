@@ -19,6 +19,7 @@ typedef struct cvrp_data {
     cvrp_node* nodes;
     int* _routes_indices;
     int* _best_routes_indices;
+    bool verbose;
 } cvrp_data;
 
 cvrp_route* cvrp_solve(cvrp_data* data, int iterations, float alpha);

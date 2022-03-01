@@ -58,7 +58,7 @@ int main(int argc, char** argv) {
         .depot = depot,
         .nodes = nodes,
         .n_nodes = n-1,
-        .n_vehicles = k
+        .verbose = true
     };
 
     float alpha=0.5;

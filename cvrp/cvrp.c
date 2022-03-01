@@ -413,8 +413,13 @@ void _cvrp_local_search(grasp* g, void* v_nodes, int n_nodes, int* solution, int
         }
 
         temperature *= alpha;
+        if (data->verbose) {
+            printf("%04.0f;", best_cost);
+        }
     }
-
+    if (data->verbose) {
+        printf("\n");
+    }
     routes_to_indices(best_routes, n_vehicles, solution, data->_routes_indices);
 }
 
