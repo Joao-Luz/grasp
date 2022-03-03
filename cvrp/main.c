@@ -9,6 +9,13 @@
 
 void parse_args(int argc, char** argv, FILE** fd, float* alpha, int* iter, float* sa_temp, float* sa_alpha, bool* verbose) {
 
+    // Default
+    *alpha = 0.5;
+    *iter = 300;
+    *sa_temp = 3000;
+    *sa_alpha = 0.9;
+    *verbose = false;
+
     if (argc < 2) {
         printf("No input file!\n");
         exit(1);
@@ -21,13 +28,6 @@ void parse_args(int argc, char** argv, FILE** fd, float* alpha, int* iter, float
     }
     for (int i = 2; i < argc; i++) {
         char* arg = argv[i];
-
-        // Default
-        *alpha = 0.5;
-        *iter = 300;
-        *sa_temp = 5000;
-        *sa_alpha = 0.9;
-        *verbose = false;
 
         if      (!strcmp(arg, "--alpha")) {
             *alpha = atof(argv[++i]);
@@ -117,14 +117,16 @@ int main(int argc, char** argv) {
     end = clock();
     elapsed_time = (double)(end-start)/CLOCKS_PER_SEC;
 
-    for(int i = 0; i < data.n_vehicles; i++) {
-        printf("Route #%d: ", i+1);
-        
-        cvrp_route route = routes[i];
-        for(int j = 0; j < route.length; j++) {
-            printf("%d ", route.stops[j]+1);
+    if(!verbose) {
+        for(int i = 0; i < data.n_vehicles; i++) {
+            printf("Route #%d: ", i+1);
+            
+            cvrp_route route = routes[i];
+            for(int j = 0; j < route.length; j++) {
+                printf("%d ", route.stops[j]+1);
+            }
+            printf("\n");
         }
-        printf("\n");
     }
 
     printf("Cost %.0f\n", cvrp_total_cost(routes, data.n_vehicles, nodes, depot));
