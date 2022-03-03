@@ -174,13 +174,20 @@ void _cvrp_split(grasp* g, void* v_nodes, int n_nodes, int* solution, int n_solu
         for(int j = 0; j < n_solution; j++) {
             if(visited[j]) continue;
             cvrp_node current_node = nodes[solution[j]];
-            if(current_node.demand <= limit) {
+            if(current_node.demand <= limit || i == n_vehicles-1) {
                 visited[j] = true;
                 limit -= current_node.demand;
                 split_solution[route_index++] = solution[j];
             }
         }
         data->_routes_indices[i] = route_index;
+    }
+
+    bool print_routes = false;
+    for(int i = 0; i < n_nodes; i++) {
+        if(!visited[i]) {
+            printf("Didn't visit %d\n", solution[i]+1);
+        }
     }
 
     // apply the nearest-neighbor heuristic
