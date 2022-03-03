@@ -7,6 +7,10 @@
 
 #include "grasp.h"
 
+float random_real() {
+    return (float)rand()/RAND_MAX;
+}
+
 float cvrp_distance(cvrp_node a, cvrp_node b) {
     return sqrt((a.x-b.x)*(a.x-b.x) + (a.y-b.y)*(a.y-b.y));
 }
@@ -260,7 +264,7 @@ void splice(cvrp_route* route_a, cvrp_route* route_b, int a, int b) {
     route_b->length = new_length_b;
 }
 
-cvrp_route* best_swap_neighbor(cvrp_route* original_routes, int n_routes, int cap, cvrp_node* nodes, cvrp_node depot) {
+cvrp_route* best_swap_neighbor(cvrp_route* original_routes, int n_routes, int cap, cvrp_node* nodes, cvrp_node depot, float temperature) {
     cvrp_route* routes = copy_routes(original_routes, n_routes);
     float best_cost = cvrp_total_cost(routes, n_routes, nodes, depot);
 
@@ -276,14 +280,16 @@ cvrp_route* best_swap_neighbor(cvrp_route* original_routes, int n_routes, int ca
 
         swap_nodes(route, a, b);
         float cost = cvrp_total_cost(routes, n_routes, nodes, depot);
-        if(cost >= best_cost)
+
+        float delta_cost = best_cost - cost;
+        if(cost >= best_cost || exp((delta_cost)/temperature) < random_real())
             swap_nodes(route, a, b);
     }
 
     return routes;
 }
 
-cvrp_route* best_invert_neighbor(cvrp_route* original_routes, int n_routes, int cap, cvrp_node* nodes, cvrp_node depot) {
+cvrp_route* best_invert_neighbor(cvrp_route* original_routes, int n_routes, int cap, cvrp_node* nodes, cvrp_node depot, float temperature) {
     cvrp_route* routes = copy_routes(original_routes, n_routes);
     float best_cost = cvrp_total_cost(routes, n_routes, nodes, depot);
 
@@ -299,14 +305,16 @@ cvrp_route* best_invert_neighbor(cvrp_route* original_routes, int n_routes, int 
 
         invert_nodes(route, a, b);
         float cost = cvrp_total_cost(routes, n_routes, nodes, depot);
-        if(cost >= best_cost)
+
+        float delta_cost = best_cost - cost;
+        if(cost >= best_cost || exp((delta_cost)/temperature) < random_real())
             invert_nodes(route, a, b);
     }
 
     return routes;
 }
 
-cvrp_route* best_intra2opt_neighbor(cvrp_route* original_routes, int n_routes, int cap, cvrp_node* nodes, cvrp_node depot) {
+cvrp_route* best_intra2opt_neighbor(cvrp_route* original_routes, int n_routes, int cap, cvrp_node* nodes, cvrp_node depot, float temperature) {
     cvrp_route* routes = copy_routes(original_routes, n_routes);
     float best_cost = cvrp_total_cost(routes, n_routes, nodes, depot);
 
@@ -329,7 +337,9 @@ cvrp_route* best_intra2opt_neighbor(cvrp_route* original_routes, int n_routes, i
             swap_nodes(route, a+1, b);
             invert_nodes(route, a+2, b-1);
             float cost = cvrp_total_cost(routes, n_routes, nodes, depot);
-            if(cost >= best_cost) {
+
+            float delta_cost = best_cost - cost;
+            if(cost >= best_cost || exp((delta_cost)/temperature) < random_real()) {
                 invert_nodes(route, a+2, b-1);
                 swap_nodes(route, a+1, b);
             }
@@ -339,7 +349,7 @@ cvrp_route* best_intra2opt_neighbor(cvrp_route* original_routes, int n_routes, i
     return routes;
 }
 
-cvrp_route* best_2opt_neighbor(cvrp_route* original_routes, int n_routes, int cap, cvrp_node* nodes, cvrp_node depot) {
+cvrp_route* best_2opt_neighbor(cvrp_route* original_routes, int n_routes, int cap, cvrp_node* nodes, cvrp_node depot, float temperature) {
     cvrp_route* routes = copy_routes(original_routes, n_routes);
     float best_cost = cvrp_total_cost(routes, n_routes, nodes, depot);
     bool spliced[n_routes]; for(int i = 0; i < n_routes; i++) spliced[i] = false;
@@ -357,8 +367,12 @@ cvrp_route* best_2opt_neighbor(cvrp_route* original_routes, int n_routes, int ca
             float current_cost = cvrp_total_cost(routes, n_routes, nodes, depot);
             bool feasable = cvrp_feasable(routes, n_routes, nodes, cap);
 
+            float delta_cost = best_cost - current_cost;
             if(current_cost < best_cost && feasable) {
                 best_cost = current_cost;
+                spliced[i] = spliced[j] = true;
+            }
+            else if (exp((delta_cost)/temperature) > random_real() && feasable) {
                 spliced[i] = spliced[j] = true;
             } else {
                 splice(route_i, route_j, a, b);
@@ -368,10 +382,6 @@ cvrp_route* best_2opt_neighbor(cvrp_route* original_routes, int n_routes, int ca
     }
 
     return routes;
-}
-
-float random_real() {
-    return (float)rand()/RAND_MAX;
 }
 
 void _cvrp_local_search(grasp* g, void* v_nodes, int n_nodes, int* solution, int* n_solution) {
@@ -392,32 +402,24 @@ void _cvrp_local_search(grasp* g, void* v_nodes, int n_nodes, int* solution, int
         int r = rand()%4;
         switch (r) {
         case 0:
-            current_routes = best_2opt_neighbor(best_routes, n_vehicles, data->cap, nodes, data->depot);
+            current_routes = best_2opt_neighbor(best_routes, n_vehicles, data->cap, nodes, data->depot, temperature);
             break;
         case 1:
-            current_routes = best_swap_neighbor(best_routes, n_vehicles, data->cap, nodes, data->depot);
+            current_routes = best_swap_neighbor(best_routes, n_vehicles, data->cap, nodes, data->depot, temperature);
             break;
         case 2:
-            current_routes = best_invert_neighbor(best_routes, n_vehicles, data->cap, nodes, data->depot);
+            current_routes = best_invert_neighbor(best_routes, n_vehicles, data->cap, nodes, data->depot, temperature);
             break;
         default:
-            current_routes = best_intra2opt_neighbor(best_routes, n_vehicles, data->cap, nodes, data->depot);
+            current_routes = best_intra2opt_neighbor(best_routes, n_vehicles, data->cap, nodes, data->depot, temperature);
             break;
         }
         float current_cost = cvrp_total_cost(current_routes, n_vehicles, nodes, depot);
         
-        if(current_cost < best_cost) {
-            best_cost = current_cost;
-            free_routes(best_routes, n_vehicles);
-            best_routes = best_2opt_neighbor(current_routes, n_vehicles, data->cap, nodes, data->depot);
-            free_routes(current_routes, n_vehicles);
-        }
-        else if(exp((best_cost-current_cost)/temperature) > random_real()){
-            free_routes(best_routes, n_vehicles);
-            best_routes = current_routes;
-        } else {
-            free_routes(current_routes, n_vehicles);
-        }
+        best_cost = current_cost;
+        free_routes(best_routes, n_vehicles);
+        best_routes = best_2opt_neighbor(current_routes, n_vehicles, data->cap, nodes, data->depot, 0);
+        free_routes(current_routes, n_vehicles);
 
         temperature *= alpha;
         if (data->verbose) {
