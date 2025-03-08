@@ -468,3 +468,7 @@ cvrp_route* cvrp_solve(cvrp_data* data, int iterations, float alpha) {
     cvrp_route* routes = indices_to_routes(solution, data->_routes_indices, data->n_vehicles);
     return routes;
 }
+
+void nothing() {
+    return NULL;
+}
